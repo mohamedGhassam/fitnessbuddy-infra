@@ -3,3 +3,4 @@
 *.tfvars
 .env*
 backup.tfstate
+*.tfplan 
