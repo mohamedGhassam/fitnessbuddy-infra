@@ -1,0 +1,84 @@
+#!/bin/bash
+set -euo pipefail
+
+#1) Swap : 2 gb on disk as cushion when ram runs out
+
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+#  prefer ram , use swap late
+echo 'vm.swappiness=10' > /etc/sysctl.d/99-swappiness.conf
+sysctl -p /etc/sysctl.d/99-swappiness.conf
+
+# never swap k3s itself
+
+mkdir -p /etc/systemd/system/k3s.service.d
+cat > /etc/systemd/system/k3s.service.d/10-no-swap.conf << EOF
+
+[Service]
+MemorySwapMax=0
+EOF
+
+
+# 2. ECR login helper: k3s looks for it in this exact folder when it starts
+CP_VER=v1.36.2
+CP_DIR=/var/lib/rancher/credentialprovider
+CP_SHA=7be106e9dd1e9a6a3dcfef1756661be69ce3d09ae5970c0c3685c58c94c8d3aa
+
+mkdir -p "$CP_DIR/bin"
+curl -fsSL -o "$CP_DIR/bin/ecr-credential-provider" \
+      "https://artifacts.k8s.io/binaries/cloud-provider-aws/$CP_VER/linux/arm64/ecr-credential-provider-linux-arm64"
+echo "$CP_SHA  $CP_DIR/bin/ecr-credential-provider" | sha256sum -c -
+chmod 0755 "$CP_DIR/bin/ecr-credential-provider"
+
+cat > "$CP_DIR/config.yaml" <<EOF
+apiVersion: kubelet.config.k8s.io/v1
+kind: CredentialProviderConfig
+providers:
+  - name: ecr-credential-provider
+    matchImages:
+      - "*.dkr.ecr.eu-north-1.amazonaws.com"
+    defaultCacheDuration: "12h"
+    apiVersion: credentialprovider.kubelet.k8s.io/v1
+EOF
+
+# 3. k3s
+# 3a. let pods use the swap file
+mkdir -p /var/lib/rancher/k3s/agent/etc/kubelet.conf.d
+cat > /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/10-swap.conf <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+failSwapOn: false
+memorySwap:
+  swapBehavior: LimitedSwap
+EOF
+
+# 3b , k3s settings
+mkdir -p /etc/rancher/k3s
+cat > /etc/rancher/k3s/config.yaml <<EOF
+write-kubeconfig-mode: "0600"
+disable:
+  - traefik
+  - servicelb
+node-label:
+  - "fitnessbuddy.io/pool=app"
+EOF
+
+# 3c. install k3s
+curl -fsSL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server
+
+#4. save the join token to ssm, so the agent can join
+snap install aws-cli --classic --channel=v2/stable
+
+until [ -s /var/lib/rancher/k3s/server/token ]; do sleep 2; done
+
+/snap/bin/aws ssm put-parameter \
+  --region "${region}" \
+  --name /fitnessbuddy/prod/k3s-token \
+  --type SecureString \
+  --overwrite \
+  --value file:///var/lib/rancher/k3s/server/token
+

@@ -1,3 +1,9 @@
+locals {
+  region      = "eu-north-1"
+  k3s_version = "v1.36.6+k3s1"
+}
+
+
 data "aws_ami" "ubuntu_arm" {
   most_recent = true
   owners      = ["099720109477"]
@@ -20,6 +26,11 @@ resource "aws_instance" "server" {
   vpc_security_group_ids = [aws_security_group.server.id]
   iam_instance_profile   = aws_iam_instance_profile.node["server"].name
 
+  user_data = templatefile("${path.module}/userdata/server.sh.tftpl", {
+    k3s_version = local.k3s_version
+    region      = local.region
+  })
+
   metadata_options {
     http_tokens                 = "required"
     http_put_response_hop_limit = 1
@@ -36,7 +47,7 @@ resource "aws_instance" "server" {
   }
 
   lifecycle {
-    ignore_changes = [ami]
+    ignore_changes = [ami, user_data]
   }
   tags = { Name = "fitnessbuddy-server" }
 }
@@ -47,6 +58,12 @@ resource "aws_instance" "agent" {
   subnet_id              = aws_default_subnet.a.id
   vpc_security_group_ids = [aws_security_group.agent.id]
   iam_instance_profile   = aws_iam_instance_profile.node["agent"].name
+
+  user_data = templatefile("${path.module}/userdata/agent.sh.tftpl", {
+    region      = local.region
+    k3s_version = local.k3s_version
+    server_ip   = aws_instance.server.private_ip
+  })
 
   metadata_options {
     http_tokens                 = "required"
@@ -65,7 +82,7 @@ resource "aws_instance" "agent" {
   }
 
   lifecycle {
-    ignore_changes = [ami]
+    ignore_changes = [ami, user_data]
   }
 
   tags = { Name = "fitnessbuddy-agent" }

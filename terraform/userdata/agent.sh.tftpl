@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+#1 . no swap on the postgres machine
+
+swapoff -a
+
+#2. ECR login helper
+CP_VER=v1.36.2
+CP_DIR=/var/lib/rancher/credentialprovider
+CP_SHA=7be106e9dd1e9a6a3dcfef1756661be69ce3d09ae5970c0c3685c58c94c8d3aa
+
+mkdir -p "$CP_DIR/bin"
+curl -fsSL -o "$CP_DIR/bin/ecr-credential-provider" \
+      "https://artifacts.k8s.io/binaries/cloud-provider-aws/$CP_VER/linux/arm64/ecr-credential-provider-linux-arm64"
+echo "$CP_SHA  $CP_DIR/bin/ecr-credential-provider" | sha256sum -c -
+chmod 0755 "$CP_DIR/bin/ecr-credential-provider"
+
+cat > "$CP_DIR/config.yaml" <<EOF
+apiVersion: kubelet.config.k8s.io/v1
+kind: CredentialProviderConfig
+providers:
+  - name: ecr-credential-provider
+    matchImages:
+      - "*.dkr.ecr.eu-north-1.amazonaws.com"
+    defaultCacheDuration: "12h"
+    apiVersion: credentialprovider.kubelet.k8s.io/v1
+EOF
+
+#3. wait for the join token
+
+snap install aws-cli --classic --channel=v2/stable
+
+until TOKEN="$(/snap/bin/aws ssm get-parameter \
+    --region "${region}" \
+    --name /fitnessbuddy/prod/k3s-token \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text)" && [ -n "$TOKEN" ]; do
+  sleep 10
+done
+
+
+#4 k3s settings
+mkdir -p /etc/rancher/k3s
+cat > /etc/rancher/k3s/config.yaml <<EOF
+node-label:
+    - "fitnessbuddy.io/pool=db"
+node-taint:
+    - "dedicated=postgres:NoSchedule"
+EOF
+
+
+#5. join the cluster
+
+curl -fsSL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" \
+    K3S_URL="https://${server_ip}:6443" \
+    K3S_TOKEN="$TOKEN" \
+    sh -s - agent

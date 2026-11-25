@@ -42,3 +42,26 @@ resource "aws_budgets_budget" "monthly" {
     threshold_type             = "PERCENTAGE"
   }
 }
+
+
+
+resource "aws_cloudwatch_metric_alarm" "recover" {
+  for_each = {
+    "server" = aws_instance.server.id
+    "agent"  = aws_instance.agent.id
+  }
+  alarm_name  = "fitnessbuddy-${each.key}-system-check"
+  namespace   = "AWS/EC2"
+  metric_name = "StatusCheckFailed_System"
+  dimensions = {
+    "InstanceId" = each.value
+  }
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 2
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+
+  alarm_actions = ["arn:aws:automate:${local.region}:ec2:recover"]
+
+}
