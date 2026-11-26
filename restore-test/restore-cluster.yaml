@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/postgresql.cnpg.io/cluster_v1.json
+# Restore test: run on the LAPTOP (k3d) only, never in prod. Argo never sees this folder.
+# No spec.backup on purpose: this cluster must never write into the prod bucket path.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+    name: restore-test
+spec:
+    instances: 1
+    imageName: ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie # same image as prod
+    storage: { size: 5Gi }
+    env: # same R2 checksum fix as prod
+        - { name: AWS_REQUEST_CHECKSUM_CALCULATION, value: when_required }
+        - { name: AWS_RESPONSE_CHECKSUM_VALIDATION, value: when_required }
+    bootstrap:
+        recovery:
+            source: origin
+            database: fitnessbuddy # default would be "app"
+            owner: fitnessbuddy
+    externalClusters:
+        - name: origin
+          barmanObjectStore:
+              serverName: fitnessbuddy-db # the folder prod writes to
+              destinationPath: s3://fitnessbuddy-pg-backups
+              endpointURL: https://3d3bdbf16de0e8314afade0749d5dfbd.r2.cloudflarestorage.com
+              s3Credentials:
+                  accessKeyId: { name: pg-backup-r2, key: ACCESS_KEY_ID }
+                  secretAccessKey: { name: pg-backup-r2, key: ACCESS_SECRET_KEY }
+              wal: { maxParallel: 4 } # fetch 4 WAL files at once during replay
