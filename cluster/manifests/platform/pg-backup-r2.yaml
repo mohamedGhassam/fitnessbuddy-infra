@@ -1,0 +1,17 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: pg-backup-r2, namespace: fitnessbuddy }
+spec:
+    refreshInterval: 1h
+    secretStoreRef:
+        kind: ClusterSecretStore
+        name: aws-ssm
+    target:
+        name: pg-backup-r2
+    data:
+        - secretKey: ACCESS_KEY_ID
+          remoteRef:
+              key: /fitnessbuddy/prod/pg-backup-r2-access
+        - secretKey: ACCESS_SECRET_KEY
+          remoteRef:
+              key: /fitnessbuddy/prod/pg-backup-r2-secret

@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata: { name: fitnessbuddy-db-daily, namespace: fitnessbuddy }
+spec:
+    immediate: true
+    backupOwnerReference: self
+    cluster:
+        name: fitnessbuddy-db
+    method: barmanObjectStore
+    schedule: "0 0 3 * * *"
