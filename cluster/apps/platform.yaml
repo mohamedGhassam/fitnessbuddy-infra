@@ -1,0 +1,22 @@
+# Shared cluster pieces as plain YAML: ClusterSecretStore (4.5), later the CNPG Cluster and ScheduledBackup.
+# NO resources-finalizer on purpose: this app will own the database. Deleting this file
+# (root app prunes it) must orphan its resources, never cascade-delete them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mohamedGhassam/fitnessbuddy-infra.git
+    targetRevision: main
+    path: cluster/manifests/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default   # only for objects that name no namespace; real ones set their own
+  syncPolicy:
+    automated: { enabled: true, prune: true, selfHeal: true }
+    syncOptions:
+      - SkipDryRunOnMissingResource=true   # ClusterSecretStore/Cluster CRDs arrive with ESO/CNPG
+    retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 5m } }

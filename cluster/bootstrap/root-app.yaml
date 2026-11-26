@@ -1,0 +1,19 @@
+# The app-of-apps. Applied ONCE by hand, after Argo CD itself:
+#   kubectl apply -f cluster/bootstrap/root-app.yaml
+# From then on, every file in cluster/apps/ is an Application that Argo CD syncs from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mohamedGhassam/fitnessbuddy-infra.git   # public: no repo credentials
+    targetRevision: main
+    path: cluster/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd   # the child Application objects live next to Argo CD
+  syncPolicy:
+    automated: { enabled: true, prune: true, selfHeal: true }
