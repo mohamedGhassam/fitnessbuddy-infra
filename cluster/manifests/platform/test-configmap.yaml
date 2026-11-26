@@ -1,9 +1,0 @@
-# Throwaway, for the phase-4 "done when" checks (sync from Git, selfHeal).
-# Delete this file after 4.5: watching it disappear from the cluster tests prune.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gitops-test
-  namespace: default
-data:
-  hello: from-git
