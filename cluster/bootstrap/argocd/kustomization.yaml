@@ -1,0 +1,31 @@
+# Argo CD core, applied ONCE by hand (Argo CD can't install itself):
+#   kubectl create namespace argocd
+#   kubectl apply --server-side --force-conflicts -k cluster/bootstrap/argocd
+# Server-side because the Application CRD is over the 256 KB client-side annotation limit.
+# Upstream ships no resources at all; these numbers are first guesses, tuned at the phase-7 RAM gate.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.6.2/manifests/core-install.yaml
+patches:
+  - target: { kind: StatefulSet, name: argocd-application-controller }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value: { requests: { cpu: 50m, memory: 192Mi }, limits: { memory: 400Mi } }
+  - target: { kind: Deployment, name: argocd-repo-server }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value: { requests: { cpu: 20m, memory: 64Mi }, limits: { memory: 256Mi } }   # helm template spikes
+  - target: { kind: Deployment, name: argocd-redis }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value: { requests: { cpu: 10m, memory: 24Mi }, limits: { memory: 64Mi } }
+  - target: { kind: Deployment, name: argocd-applicationset-controller }
+    patch: |
+      - op: add   # not "replace": upstream sets no replicas field, and replace fails on a missing path
+        path: /spec/replicas
+        value: 0   # app-of-apps uses plain Applications
