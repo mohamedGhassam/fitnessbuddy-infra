@@ -1,11 +1,13 @@
 locals {
   # SSM name => version. Bump one number to resend (rotate) that secret.
   secret_versions = {
-    "jwt-secret"      = 1
-    "usda-api-key"    = 1
-    "youtube-api-key" = 1
-    "r2-access"       = 1
-    "r2-secret"       = 1
+    "jwt-secret"          = 1
+    "usda-api-key"        = 1
+    "youtube-api-key"     = 1
+    "r2-access"           = 1
+    "r2-secret"           = 1
+    "pg-backup-r2-access" = 1
+    "pg-backup-r2-secret" = 1
   }
 }
 
@@ -44,4 +46,18 @@ resource "aws_ssm_parameter" "r2_secret" {
   type             = "SecureString"
   value_wo         = var.r2_secret
   value_wo_version = local.secret_versions["r2-secret"]
+}
+
+resource "aws_ssm_parameter" "pg_backup_r2_access" {
+  name             = "/fitnessbuddy/prod/pg-backup-r2-access"
+  type             = "SecureString"
+  value_wo         = var.pg_backup_r2_access
+  value_wo_version = local.secret_versions["pg-backup-r2-access"]
+}
+
+resource "aws_ssm_parameter" "pg_backup_r2_secret" {
+  name             = "/fitnessbuddy/prod/pg-backup-r2-secret"
+  type             = "SecureString"
+  value_wo         = var.pg_backup_r2_secret
+  value_wo_version = local.secret_versions["pg-backup-r2-secret"]
 }

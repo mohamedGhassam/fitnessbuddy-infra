@@ -27,3 +27,15 @@ variable "r2_secret" {
   sensitive = true
   ephemeral = true
 }
+
+variable "pg_backup_r2_access" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+}
+
+variable "pg_backup_r2_secret" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+}

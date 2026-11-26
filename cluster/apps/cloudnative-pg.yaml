@@ -1,0 +1,30 @@
+# CloudNativePG operator: turns Cluster objects (in platform, task 5.3) into a Postgres pod, PVC, Services and Secret.
+# Runs on the small node: no toleration, so the micro node's taint keeps it off. It only talks to the API server.
+# NO resources-finalizer on purpose: deleting this app would delete the CRDs, and deleting the clusters CRD
+# deletes the Cluster, its PVC and the data. Without the finalizer, removing this file only orphans the operator.
+# Hold below operator 1.32 (chart 0.31+): 1.32 removes the built-in barmanObjectStore we back up with.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+    name: cloudnative-pg
+    namespace: argocd
+spec:
+    project: default
+    source:
+        repoURL: https://cloudnative-pg.github.io/charts
+        chart: cloudnative-pg
+        targetRevision: 0.29.2 # operator 1.30.2
+        helm:
+            valuesObject:
+                resources: # chart ships {}; first guess, measured at the phase-7 RAM gate
+                    requests: { cpu: 100m, memory: 100Mi }
+                    limits: { memory: 200Mi }
+    destination:
+        server: https://kubernetes.default.svc
+        namespace: cnpg-system
+    syncPolicy:
+        automated: { enabled: true, prune: true, selfHeal: true }
+        syncOptions:
+            - CreateNamespace=true
+            - ServerSideApply=true # clusters CRD is 474 KB, poolers 679 KB; client-side caps at 256 KB
+        retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 5m } }
