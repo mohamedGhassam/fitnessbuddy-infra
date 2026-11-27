@@ -1,0 +1,637 @@
+{
+    "apiVersion": "dashboard.grafana.app/v2",
+    "kind": "Dashboard",
+    "spec": {
+        "annotations": [
+            {
+                "kind": "AnnotationQuery",
+                "spec": {
+                    "query": {
+                        "kind": "DataQuery",
+                        "group": "grafana",
+                        "version": "v0",
+                        "datasource": {
+                            "name": "-- Grafana --"
+                        },
+                        "spec": {}
+                    },
+                    "enable": true,
+                    "hide": true,
+                    "iconColor": "rgba(0, 211, 255, 1)",
+                    "name": "Annotations & Alerts",
+                    "builtIn": true,
+                    "legacyOptions": {
+                        "type": "dashboard"
+                    }
+                }
+            }
+        ],
+        "cursorSync": "Off",
+        "editable": true,
+        "elements": {
+            "panel-1": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 1,
+                    "title": "CPU cores used per node",
+                    "description": "rate() of the kubelet CPU-seconds counter = cores busy. Both nodes have 2 vCPU (burstable).",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "sum by (pool) (rate(node_cpu_usage_seconds_total{pool!=\"\"}[5m]))",
+                                                "instant": false,
+                                                "legendFormat": "{{pool}}",
+                                                "range": true
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "timeseries",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "legend": {
+                                    "calcs": ["lastNotNull", "max"],
+                                    "displayMode": "table",
+                                    "placement": "bottom"
+                                },
+                                "tooltip": {
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "unit": "none",
+                                    "decimals": 2,
+                                    "min": 0,
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "fillOpacity": 15,
+                                        "gradientMode": "opacity",
+                                        "lineWidth": 2,
+                                        "showPoints": "never",
+                                        "spanNulls": true
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            },
+            "panel-2": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 2,
+                    "title": "Memory used per node",
+                    "description": "Working set = memory the kernel cannot easily reclaim. app = t4g.small (2 GiB), db = t4g.micro (1 GiB).",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "sum by (pool) (node_memory_working_set_bytes{pool!=\"\"})",
+                                                "instant": false,
+                                                "legendFormat": "{{pool}}",
+                                                "range": true
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "timeseries",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "legend": {
+                                    "calcs": ["lastNotNull", "max"],
+                                    "displayMode": "table",
+                                    "placement": "bottom"
+                                },
+                                "tooltip": {
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "unit": "bytes",
+                                    "min": 0,
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "fillOpacity": 15,
+                                        "gradientMode": "opacity",
+                                        "lineWidth": 2,
+                                        "showPoints": "never",
+                                        "spanNulls": true
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            },
+            "panel-3": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 3,
+                    "title": "Swap used",
+                    "description": "Only the small node has swap. The Phase 11 alert fires above 1 GB for 15 min.",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "sum by (pool) (node_swap_usage_bytes{pool!=\"\"})",
+                                                "instant": false,
+                                                "legendFormat": "{{pool}}",
+                                                "range": true
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "timeseries",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "legend": {
+                                    "calcs": ["lastNotNull", "max"],
+                                    "displayMode": "table",
+                                    "placement": "bottom"
+                                },
+                                "tooltip": {
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "unit": "bytes",
+                                    "min": 0,
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "value": null,
+                                                "color": "green"
+                                            },
+                                            {
+                                                "value": 1000000000,
+                                                "color": "red"
+                                            }
+                                        ]
+                                    },
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "fillOpacity": 15,
+                                        "gradientMode": "opacity",
+                                        "lineWidth": 2,
+                                        "showPoints": "never",
+                                        "spanNulls": true
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            },
+            "panel-4": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 4,
+                    "title": "Memory per pod",
+                    "description": "Largest first. Compare against each pod's memory limit when sizing.",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "sort_desc(sum by (namespace, pod) (pod_memory_working_set_bytes))",
+                                                "instant": true,
+                                                "legendFormat": "{{namespace}} / {{pod}}",
+                                                "range": false
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "bargauge",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "displayMode": "gradient",
+                                "maxVizHeight": 24,
+                                "minVizHeight": 16,
+                                "namePlacement": "left",
+                                "orientation": "horizontal",
+                                "reduceOptions": {
+                                    "calcs": ["lastNotNull"],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "showUnfilled": true,
+                                "valueMode": "color"
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "unit": "bytes",
+                                    "decimals": 0,
+                                    "min": 0,
+                                    "color": {
+                                        "mode": "continuous-GrYlRd"
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            },
+            "panel-5": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 5,
+                    "title": "Root disk used",
+                    "description": "The real disk only (device=/dev/root); id=\"/\" also matches snap loop mounts and boot partitions.",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "sum by (pool) (container_fs_usage_bytes{id=\"/\", device=\"/dev/root\", pool!=\"\"}) / sum by (pool) (container_fs_limit_bytes{id=\"/\", device=\"/dev/root\", pool!=\"\"})",
+                                                "instant": true,
+                                                "legendFormat": "{{pool}}",
+                                                "range": false
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "gauge",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "orientation": "auto",
+                                "reduceOptions": {
+                                    "calcs": ["lastNotNull"],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "showThresholdLabels": false,
+                                "showThresholdMarkers": true
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "unit": "percentunit",
+                                    "decimals": 1,
+                                    "min": 0,
+                                    "max": 1,
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "value": null,
+                                                "color": "green"
+                                            },
+                                            {
+                                                "value": 0.7,
+                                                "color": "orange"
+                                            },
+                                            {
+                                                "value": 0.8,
+                                                "color": "red"
+                                            }
+                                        ]
+                                    },
+                                    "color": {
+                                        "mode": "thresholds"
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            },
+            "panel-6": {
+                "kind": "Panel",
+                "spec": {
+                    "id": 6,
+                    "title": "Scrape health",
+                    "description": "up = 1 means the last scrape of that target worked.",
+                    "links": [],
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "query": {
+                                            "kind": "DataQuery",
+                                            "group": "prometheus",
+                                            "version": "v0",
+                                            "datasource": {
+                                                "name": "grafanacloud-prom"
+                                            },
+                                            "spec": {
+                                                "editorMode": "code",
+                                                "expr": "label_replace(up, \"target\", \"$1\", \"job\", \"prometheus.scrape.(.*)\")",
+                                                "instant": true,
+                                                "legendFormat": "{{target}} · {{instance}}",
+                                                "range": false
+                                            }
+                                        },
+                                        "refId": "A",
+                                        "hidden": false
+                                    }
+                                }
+                            ],
+                            "transformations": [],
+                            "queryOptions": {}
+                        }
+                    },
+                    "vizConfig": {
+                        "kind": "VizConfig",
+                        "group": "stat",
+                        "version": "",
+                        "spec": {
+                            "options": {
+                                "colorMode": "background",
+                                "graphMode": "none",
+                                "justifyMode": "auto",
+                                "orientation": "horizontal",
+                                "reduceOptions": {
+                                    "calcs": ["lastNotNull"],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "textMode": "value_and_name",
+                                "wideLayout": true
+                            },
+                            "fieldConfig": {
+                                "defaults": {
+                                    "mappings": [
+                                        {
+                                            "type": "value",
+                                            "options": {
+                                                "0": {
+                                                    "text": "DOWN",
+                                                    "color": "red",
+                                                    "index": 0
+                                                },
+                                                "1": {
+                                                    "text": "UP",
+                                                    "color": "green",
+                                                    "index": 1
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "value": null,
+                                                "color": "red"
+                                            },
+                                            {
+                                                "value": 1,
+                                                "color": "green"
+                                            }
+                                        ]
+                                    },
+                                    "color": {
+                                        "mode": "thresholds"
+                                    }
+                                },
+                                "overrides": []
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "layout": {
+            "kind": "GridLayout",
+            "spec": {
+                "items": [
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 0,
+                            "y": 0,
+                            "width": 12,
+                            "height": 8,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-1"
+                            }
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 12,
+                            "y": 0,
+                            "width": 12,
+                            "height": 8,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-2"
+                            }
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 0,
+                            "y": 8,
+                            "width": 6,
+                            "height": 8,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-5"
+                            }
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 6,
+                            "y": 8,
+                            "width": 6,
+                            "height": 8,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-3"
+                            }
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 12,
+                            "y": 8,
+                            "width": 12,
+                            "height": 8,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-6"
+                            }
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "x": 0,
+                            "y": 16,
+                            "width": 24,
+                            "height": 10,
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-4"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "links": [],
+        "liveNow": false,
+        "preload": false,
+        "tags": [],
+        "timeSettings": {
+            "timezone": "browser",
+            "from": "now-6h",
+            "to": "now",
+            "autoRefresh": "auto",
+            "autoRefreshIntervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+            "hideTimepicker": false,
+            "fiscalYearStartMonth": 0
+        },
+        "title": "fitnessbuddy",
+        "variables": [],
+        "preferences": {
+            "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                    "items": []
+                }
+            }
+        }
+    }
+}
