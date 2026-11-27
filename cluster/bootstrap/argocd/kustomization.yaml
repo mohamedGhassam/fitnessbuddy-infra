@@ -24,6 +24,16 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/resources
         value: { requests: { cpu: 10m, memory: 24Mi }, limits: { memory: 64Mi } }
+  # Phase-7 RAM gate: run Argo CD on the db node (t4g.small since 2026-11-27), not the app node,
+  # to leave ~700 MiB for Spring. Postgres keeps priority there: its request = limit, these have limits.
+  - target: { kind: StatefulSet|Deployment, name: argocd-application-controller|argocd-repo-server|argocd-redis }
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value: { fitnessbuddy.io/pool: db }
+      - op: add
+        path: /spec/template/spec/tolerations
+        value: [{ key: dedicated, operator: Equal, value: postgres, effect: NoSchedule }]
   - target: { kind: Deployment, name: argocd-applicationset-controller }
     patch: |
       - op: add   # not "replace": upstream sets no replicas field, and replace fails on a missing path

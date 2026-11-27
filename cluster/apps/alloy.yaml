@@ -1,6 +1,7 @@
 # Grafana Alloy: one pod that scrapes metrics (kubelet, cAdvisor, CNPG, later Spring) and tails all pod logs
 # through the API server, then pushes both to Grafana Cloud. Nothing connects in.
-# Runs on the small node: no toleration, so the micro node's taint keeps it off (like the CNPG operator).
+# Runs on the db node (t4g.small since the phase-7 RAM gate, 2026-11-27) next to Postgres and Argo CD,
+# to leave the app node's RAM for Spring. Postgres keeps priority: its request = limit, Alloy has a limit.
 # Has the finalizer: Alloy holds no data, so removing this file should uninstall it.
 # Token: Secret grafana-cloud in monitoring, made by ESO (manifests/platform/grafana-cloud.yaml).
 apiVersion: argoproj.io/v1alpha1
@@ -19,7 +20,12 @@ spec:
         helm:
             valuesObject:
                 crds: { create: false } # PodLogs CRD; we use loki.source.kubernetes instead
-                controller: { type: deployment, replicas: 1 } # chart default is a DaemonSet
+                controller:
+                    type: deployment # chart default is a DaemonSet
+                    replicas: 1
+                    nodeSelector: { fitnessbuddy.io/pool: db }
+                    tolerations:
+                        - { key: dedicated, operator: Equal, value: postgres, effect: NoSchedule }
                 configReloader:
                     resources:
                         requests: { cpu: 5m, memory: 20Mi }
