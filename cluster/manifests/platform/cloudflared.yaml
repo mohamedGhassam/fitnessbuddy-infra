@@ -1,0 +1,59 @@
+# Cloudflare Tunnel connector: dials OUT to Cloudflare (QUIC/UDP 7844, HTTP/2 fallback on TCP 7844),
+# so nothing in AWS listens to the internet. Workers VPC (phase 9) sends API requests down this tunnel;
+# cloudflared resolves fitnessbuddy-api.fitnessbuddy.svc.cluster.local through CoreDNS.
+# Remotely managed tunnel "fitnessbuddy", ID 4db2220d-1cd7-4f74-bb78-cb92457a5b8c (not secret).
+# The token IS secret: SSM /fitnessbuddy/prod/cloudflare-tunnel-token -> ESO -> Secret tunnel-token.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: tunnel-token, namespace: fitnessbuddy }
+spec:
+    refreshInterval: 1h
+    secretStoreRef:
+        kind: ClusterSecretStore
+        name: aws-ssm
+    target:
+        name: tunnel-token
+    data:
+        - secretKey: token
+          remoteRef:
+              key: /fitnessbuddy/prod/cloudflare-tunnel-token
+---
+# Follows Cloudflare's Kubernetes guide, with: pinned tag, 1 replica (Cloudflare suggests 2; ~30 MB each
+# on the swapping small node), resource limits, a locked-down securityContext, no ping_group_range sysctl
+# (ICMP proxying is not used by Workers VPC). No toleration: the micro node's taint keeps it on the small node.
+# No Service: nothing connects to cloudflared.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: cloudflared, namespace: fitnessbuddy }
+spec:
+    replicas: 1 # rolling updates still overlap (maxSurge 1), so only a crash costs a few seconds
+    selector:
+        matchLabels: { app: cloudflared }
+    template:
+        metadata:
+            labels: { app: cloudflared }
+        spec:
+            containers:
+                - name: cloudflared
+                  image: cloudflare/cloudflared:2026.11.2 # multi-arch; Workers VPC needs >= 2025.7.0
+                  # global flags must come before "run"
+                  args: [tunnel, --no-autoupdate, --loglevel, info, --metrics, 0.0.0.0:2000, run]
+                  env:
+                      - name: TUNNEL_TOKEN
+                        valueFrom:
+                            secretKeyRef: { name: tunnel-token, key: token }
+                  ports:
+                      - { name: metrics, containerPort: 2000 } # /ready and /metrics
+                  livenessProbe: # /ready = 200 once at least one connection to Cloudflare is registered
+                      httpGet: { path: /ready, port: metrics }
+                      initialDelaySeconds: 10
+                      periodSeconds: 10
+                      failureThreshold: 1
+                  resources: # first guess, measured at the 7.3 RAM gate
+                      requests: { cpu: 10m, memory: 32Mi }
+                      limits: { memory: 64Mi }
+                  securityContext:
+                      runAsNonRoot: true # image user is 65532 (nonroot)
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities: { drop: [ALL] }
