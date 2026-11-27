@@ -131,7 +131,7 @@ spec:
                               forward_to        = [prometheus.remote_write.cloud.receiver]
                             }
                             prometheus.scrape "cadvisor" {
-                              targets           = discovery.kubernetes.nodes.targets
+                              targets           = discovery.relabel.nodes.output
                               scheme            = "https"
                               metrics_path      = "/metrics/cadvisor"
                               bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
