@@ -39,3 +39,9 @@ variable "pg_backup_r2_secret" {
   sensitive = true
   ephemeral = true
 }
+
+variable "grafana_cloud_token" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+}

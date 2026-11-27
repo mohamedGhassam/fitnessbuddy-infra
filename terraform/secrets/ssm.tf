@@ -8,6 +8,7 @@ locals {
     "r2-secret"           = 1
     "pg-backup-r2-access" = 1
     "pg-backup-r2-secret" = 1
+    "grafana-cloud-token" = 1
   }
 }
 
@@ -60,4 +61,11 @@ resource "aws_ssm_parameter" "pg_backup_r2_secret" {
   type             = "SecureString"
   value_wo         = var.pg_backup_r2_secret
   value_wo_version = local.secret_versions["pg-backup-r2-secret"]
+}
+
+resource "aws_ssm_parameter" "grafana_cloud_token" {
+  name             = "/fitnessbuddy/prod/grafana-cloud-token"
+  type             = "SecureString"
+  value_wo         = var.grafana_cloud_token
+  value_wo_version = local.secret_versions["grafana-cloud-token"]
 }
