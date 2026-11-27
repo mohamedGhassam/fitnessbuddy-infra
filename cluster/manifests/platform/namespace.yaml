@@ -4,3 +4,9 @@ metadata:
     name: fitnessbuddy
     annotations:
         argocd.argoproj.io/sync-options: Prune=false
+---
+# Alloy (apps/alloy.yaml) runs here. Created by platform so the grafana-cloud ExternalSecret has a home first.
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: monitoring

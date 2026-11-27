@@ -1,0 +1,168 @@
+# Grafana Alloy: one pod that scrapes metrics (kubelet, cAdvisor, CNPG, later Spring) and tails all pod logs
+# through the API server, then pushes both to Grafana Cloud. Nothing connects in.
+# Runs on the small node: no toleration, so the micro node's taint keeps it off (like the CNPG operator).
+# Has the finalizer: Alloy holds no data, so removing this file should uninstall it.
+# Token: Secret grafana-cloud in monitoring, made by ESO (manifests/platform/grafana-cloud.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+    name: alloy
+    namespace: argocd
+    finalizers:
+        - resources-finalizer.argocd.argoproj.io
+spec:
+    project: default
+    source:
+        repoURL: https://grafana.github.io/helm-charts
+        chart: alloy
+        targetRevision: 1.16.0 # Alloy v1.22.0
+        helm:
+            valuesObject:
+                crds: { create: false } # PodLogs CRD; we use loki.source.kubernetes instead
+                controller: { type: deployment, replicas: 1 } # chart default is a DaemonSet
+                configReloader:
+                    resources:
+                        requests: { cpu: 5m, memory: 20Mi }
+                        limits: { memory: 50Mi }
+                rbac: # replaces the chart's list, which reads every Secret and ConfigMap cluster-wide
+                    rules:
+                        - apiGroups: [""]
+                          resources: ["pods", "pods/log", "namespaces"]
+                          verbs: ["get", "list", "watch"]
+                    clusterRules:
+                        - apiGroups: [""]
+                          resources: ["nodes"]
+                          verbs: ["get", "list", "watch"]
+                        - apiGroups: [""]
+                          resources: ["nodes/metrics"] # kubelet /metrics/resource and /metrics/cadvisor
+                          verbs: ["get"]
+                alloy:
+                    enableReporting: false # no anonymous usage stats to Grafana
+                    resources: # first guess (~100-150 Mi expected), measured at the phase-7 RAM gate
+                        requests: { cpu: 50m, memory: 128Mi }
+                        limits: { memory: 256Mi }
+                    extraEnv: # not secret: endpoints and stack user IDs from the Cloud portal
+                        - { name: PROM_URL, value: "https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push" }
+                        - { name: PROM_USER, value: "3232062" }
+                        - { name: LOKI_URL, value: "https://logs-prod-012.grafana.net/loki/api/v1/push" }
+                        - { name: LOKI_USER, value: "1611706" }
+                    envFrom:
+                        - secretRef: { name: grafana-cloud } # GRAFANA_CLOUD_TOKEN
+                    configMap:
+                        content: |
+                            // ---------- where data goes ----------
+                            prometheus.remote_write "cloud" {
+                              external_labels = { cluster = "fitnessbuddy" }
+                              endpoint {
+                                url = sys.env("PROM_URL")
+                                basic_auth {
+                                  username = sys.env("PROM_USER")
+                                  password = sys.env("GRAFANA_CLOUD_TOKEN")
+                                }
+                              }
+                            }
+                            loki.write "cloud" {
+                              external_labels = { cluster = "fitnessbuddy" }
+                              endpoint {
+                                url = sys.env("LOKI_URL")
+                                basic_auth {
+                                  username = sys.env("LOKI_USER")
+                                  password = sys.env("GRAFANA_CLOUD_TOKEN")
+                                }
+                              }
+                            }
+
+                            // ---------- discovery ----------
+                            discovery.kubernetes "pods"  { role = "pod" }
+                            discovery.kubernetes "nodes" { role = "node" }   // address = <node IP>:10250 (kubelet)
+
+                            // ---------- Spring: only the 'management' port (8081). Finds nothing until phase 8 ----------
+                            discovery.relabel "spring" {
+                              targets = discovery.kubernetes.pods.targets
+                              rule {
+                                source_labels = ["__meta_kubernetes_pod_label_app", "__meta_kubernetes_pod_container_port_name"]
+                                regex         = "fitnessbuddy;management"
+                                action        = "keep"
+                              }
+                            }
+                            prometheus.scrape "spring" {
+                              targets         = discovery.relabel.spring.output
+                              metrics_path    = "/actuator/prometheus"
+                              scrape_interval = "60s"
+                              forward_to      = [prometheus.remote_write.cloud.receiver]
+                            }
+
+                            // ---------- CloudNativePG instance pods (port 'metrics' = 9187) ----------
+                            discovery.relabel "cnpg" {
+                              targets = discovery.kubernetes.pods.targets
+                              rule {
+                                source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster", "__meta_kubernetes_pod_container_port_name"]
+                                regex         = ".+;metrics"
+                                action        = "keep"
+                              }
+                            }
+                            prometheus.scrape "cnpg" {
+                              targets         = discovery.relabel.cnpg.output
+                              scrape_interval = "60s"
+                              forward_to      = [prometheus.remote_write.cloud.receiver]
+                            }
+
+                            // ---------- node metrics from each kubelet (no node-exporter pod) ----------
+                            prometheus.scrape "kubelet" {
+                              targets           = discovery.kubernetes.nodes.targets
+                              scheme            = "https"
+                              metrics_path      = "/metrics/resource"
+                              bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                              tls_config { insecure_skip_verify = true }   // k3s kubelet cert is self-signed
+                              scrape_interval   = "60s"
+                              forward_to        = [prometheus.remote_write.cloud.receiver]
+                            }
+                            prometheus.scrape "cadvisor" {
+                              targets           = discovery.kubernetes.nodes.targets
+                              scheme            = "https"
+                              metrics_path      = "/metrics/cadvisor"
+                              bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                              tls_config { insecure_skip_verify = true }
+                              scrape_interval   = "60s"
+                              forward_to        = [prometheus.relabel.cadvisor_keep.receiver]
+                            }
+                            // cAdvisor emits thousands of series: keep only what alerts and dashboards use
+                            prometheus.relabel "cadvisor_keep" {
+                              rule {
+                                source_labels = ["__name__"]
+                                regex         = "container_memory_working_set_bytes|container_cpu_usage_seconds_total|container_fs_usage_bytes|container_fs_limit_bytes|container_oom_events_total"
+                                action        = "keep"
+                              }
+                              forward_to = [prometheus.remote_write.cloud.receiver]
+                            }
+
+                            // ---------- logs: every pod, through the API server ----------
+                            discovery.relabel "logs" {
+                              targets = discovery.kubernetes.pods.targets
+                              rule {
+                                source_labels = ["__meta_kubernetes_namespace"]
+                                target_label  = "namespace"
+                              }
+                              rule {
+                                source_labels = ["__meta_kubernetes_pod_name"]
+                                target_label  = "pod"
+                              }
+                              rule {
+                                source_labels = ["__meta_kubernetes_pod_container_name"]
+                                target_label  = "container"
+                              }
+                              rule {
+                                source_labels = ["__meta_kubernetes_pod_label_app"]
+                                target_label  = "app"
+                              }
+                            }
+                            loki.source.kubernetes "pods" {
+                              targets    = discovery.relabel.logs.output
+                              forward_to = [loki.write.cloud.receiver]
+                            }
+    destination:
+        server: https://kubernetes.default.svc
+        namespace: monitoring
+    syncPolicy:
+        automated: { enabled: true, prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 5m } } # waits for platform to create the namespace and Secret

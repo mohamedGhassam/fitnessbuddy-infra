@@ -1,0 +1,16 @@
+# Grafana Cloud token for Alloy: one access policy (metrics:write, logs:write), used as the
+# basic-auth password for both the Prometheus and the Loki push. Alloy reads it with envFrom.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: grafana-cloud, namespace: monitoring }
+spec:
+    refreshInterval: 1h
+    secretStoreRef:
+        kind: ClusterSecretStore
+        name: aws-ssm
+    target:
+        name: grafana-cloud
+    data:
+        - secretKey: GRAFANA_CLOUD_TOKEN
+          remoteRef:
+              key: /fitnessbuddy/prod/grafana-cloud-token
