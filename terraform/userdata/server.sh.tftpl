@@ -64,8 +64,19 @@ secrets-encryption: true
 disable:
   - traefik
   - servicelb
+  - metrics-server
+disable-helm-controller: true
+disable-network-policy: true
 node-label:
   - "fitnessbuddy.io/pool=app"
+EOF
+
+# 3b2. soft memory ceiling for the k3s Go process (phase-7 RAM gate: RSS 1017 -> ~800 MiB).
+# A systemd drop-in, not k3s.service.env: the installer rewrites that env file on every (re)install.
+mkdir -p /etc/systemd/system/k3s.service.d
+cat > /etc/systemd/system/k3s.service.d/10-gomemlimit.conf <<EOF
+[Service]
+Environment=GOMEMLIMIT=700MiB
 EOF
 
 # 3c. install k3s

@@ -54,7 +54,7 @@ resource "aws_instance" "server" {
 
 resource "aws_instance" "agent" {
   ami                    = data.aws_ami.ubuntu_arm.id
-  instance_type          = "t4g.micro"
+  instance_type          = "t4g.small" # was t4g.micro; phase-7 RAM gate: this node now also runs Argo CD + Alloy
   subnet_id              = aws_default_subnet.a.id
   vpc_security_group_ids = [aws_security_group.agent.id]
   iam_instance_profile   = aws_iam_instance_profile.node["agent"].name
