@@ -18,9 +18,9 @@ spec:
           remoteRef:
               key: /fitnessbuddy/prod/cloudflare-tunnel-token
 ---
-# Follows Cloudflare's Kubernetes guide, with: pinned tag, 1 replica (Cloudflare suggests 2; ~30 MB each
-# on the swapping small node), resource limits, a locked-down securityContext, no ping_group_range sysctl
-# (ICMP proxying is not used by Workers VPC). No toleration: the micro node's taint keeps it on the small node.
+# Follows Cloudflare's Kubernetes guide, with: pinned tag, 1 replica (Cloudflare suggests 2; ~30 MB each,
+# kept low for the RAM gate), resource limits, a locked-down securityContext, no ping_group_range sysctl
+# (ICMP proxying is not used by Workers VPC). Runs on the db node with the other platform pods (phase-7 RAM gate).
 # No Service: nothing connects to cloudflared.
 apiVersion: apps/v1
 kind: Deployment
@@ -33,6 +33,9 @@ spec:
         metadata:
             labels: { app: cloudflared }
         spec:
+            nodeSelector: { fitnessbuddy.io/pool: db }
+            tolerations:
+                - { key: dedicated, operator: Equal, value: postgres, effect: NoSchedule }
             containers:
                 - name: cloudflared
                   image: cloudflare/cloudflared:2026.11.2 # multi-arch; Workers VPC needs >= 2025.7.0

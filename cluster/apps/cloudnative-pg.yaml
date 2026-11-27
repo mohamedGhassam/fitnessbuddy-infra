@@ -1,5 +1,6 @@
 # CloudNativePG operator: turns Cluster objects (in platform, task 5.3) into a Postgres pod, PVC, Services and Secret.
-# Runs on the small node: no toleration, so the micro node's taint keeps it off. It only talks to the API server.
+# Runs on the db node with the other platform pods (phase-7 RAM gate, 2026-11-27): the app node keeps only
+# the k3s control plane + Spring. It only talks to the API server.
 # NO resources-finalizer on purpose: deleting this app would delete the CRDs, and deleting the clusters CRD
 # deletes the Cluster, its PVC and the data. Without the finalizer, removing this file only orphans the operator.
 # Hold below operator 1.32 (chart 0.31+): 1.32 removes the built-in barmanObjectStore we back up with.
@@ -16,6 +17,9 @@ spec:
         targetRevision: 0.29.2 # operator 1.30.2
         helm:
             valuesObject:
+                nodeSelector: { fitnessbuddy.io/pool: db }
+                tolerations:
+                    - { key: dedicated, operator: Equal, value: postgres, effect: NoSchedule }
                 resources: # chart ships {}; first guess, measured at the phase-7 RAM gate
                     requests: { cpu: 100m, memory: 100Mi }
                     limits: { memory: 200Mi }
