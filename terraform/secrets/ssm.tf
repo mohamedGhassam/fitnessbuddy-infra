@@ -1,14 +1,15 @@
 locals {
   # SSM name => version. Bump one number to resend (rotate) that secret.
   secret_versions = {
-    "jwt-secret"          = 1
-    "usda-api-key"        = 1
-    "youtube-api-key"     = 1
-    "r2-access"           = 1
-    "r2-secret"           = 1
-    "pg-backup-r2-access" = 1
-    "pg-backup-r2-secret" = 1
-    "grafana-cloud-token" = 1
+    "jwt-secret"              = 1
+    "usda-api-key"            = 1
+    "youtube-api-key"         = 1
+    "r2-access"               = 1
+    "r2-secret"               = 1
+    "pg-backup-r2-access"     = 1
+    "pg-backup-r2-secret"     = 1
+    "grafana-cloud-token"     = 1
+    "cloudflare-tunnel-token" = 1
   }
 }
 
@@ -68,4 +69,11 @@ resource "aws_ssm_parameter" "grafana_cloud_token" {
   type             = "SecureString"
   value_wo         = var.grafana_cloud_token
   value_wo_version = local.secret_versions["grafana-cloud-token"]
+}
+
+resource "aws_ssm_parameter" "cloudflare_tunnel_token" {
+  name             = "/fitnessbuddy/prod/cloudflare-tunnel-token"
+  type             = "SecureString"
+  value_wo         = var.cloudflare_tunnel_token
+  value_wo_version = local.secret_versions["cloudflare-tunnel-token"]
 }

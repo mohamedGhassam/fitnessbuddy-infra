@@ -45,3 +45,9 @@ variable "grafana_cloud_token" {
   sensitive = true
   ephemeral = true
 }
+
+variable "cloudflare_tunnel_token" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+}
