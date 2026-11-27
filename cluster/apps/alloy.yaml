@@ -126,11 +126,12 @@ spec:
                               scrape_interval   = "60s"
                               forward_to        = [prometheus.relabel.cadvisor_keep.receiver]
                             }
-                            // cAdvisor emits thousands of series: keep only what alerts and dashboards use
+                            // cAdvisor emits thousands of series: keep only what alerts and dashboards use.
+                            // 'up' too, or a failing cAdvisor scrape vanishes instead of showing up=0.
                             prometheus.relabel "cadvisor_keep" {
                               rule {
                                 source_labels = ["__name__"]
-                                regex         = "container_memory_working_set_bytes|container_cpu_usage_seconds_total|container_fs_usage_bytes|container_fs_limit_bytes|container_oom_events_total"
+                                regex         = "up|container_memory_working_set_bytes|container_cpu_usage_seconds_total|container_fs_usage_bytes|container_fs_limit_bytes|container_oom_events_total"
                                 action        = "keep"
                               }
                               forward_to = [prometheus.remote_write.cloud.receiver]
