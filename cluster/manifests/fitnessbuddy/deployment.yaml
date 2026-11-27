@@ -15,7 +15,7 @@ spec:
         spec:
             containers:
                 - name: app
-                  image: 071026217479.dkr.ecr.eu-north-1.amazonaws.com/fitnessbuddy:c11529f226512236713af34e803fd7455d0962d4 # CI rewrites this line (phase 10)
+                  image: 071026217479.dkr.ecr.eu-north-1.amazonaws.com/fitnessbuddy:5fe6eac087e03b8124f7562ffc72b3e10345163a # CI rewrites this line (phase 10)
                   imagePullPolicy: IfNotPresent # tags are immutable in ECR
                   ports:
                       - { name: http, containerPort: 8080 } # API; the only port in the Service
