@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: fitnessbuddy-config
+    namespace: fitnessbuddy
+data:
+    SPRING_DATASOURCE_URL: "jdbc:postgresql://fitnessbuddy-db-rw:5432/fitnessbuddy"
+    R2_BUCKET: "fitnessbuddy-media"
+    R2_PUBLIC: "https://pub-488d50bb4acc44a5aa0365969f7e91b5.r2.dev/"
+    R2_ENDPOINT: "https://3d3bdbf16de0e8314afade0749d5dfbd.r2.cloudflarestorage.com"
+    GOOGLE_CLIENT_ID: "625423587792-kbq35kai30q18s1d3q1mkep7uu8tsgld.apps.googleusercontent.com"

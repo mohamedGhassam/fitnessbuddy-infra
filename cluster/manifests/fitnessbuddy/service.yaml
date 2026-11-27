@@ -1,0 +1,10 @@
+# In-cluster address for the API: fitnessbuddy-api.fitnessbuddy.svc.cluster.local:8080.
+# Phase 9's Workers VPC Service targets this name through the tunnel. Port 8080 only: Actuator (8081) is never exposed.
+apiVersion: v1
+kind: Service
+metadata: { name: fitnessbuddy-api, namespace: fitnessbuddy }
+spec:
+    type: ClusterIP
+    selector: { app: fitnessbuddy }
+    ports:
+        - { name: http, port: 8080, targetPort: http } # targetPort by name: follows the container port

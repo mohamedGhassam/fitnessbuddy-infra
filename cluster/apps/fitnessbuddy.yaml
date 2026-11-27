@@ -1,0 +1,22 @@
+# The Spring Boot app: ConfigMap, ExternalSecret, Deployment, Service (cluster/manifests/fitnessbuddy).
+# Separate from platform: it changes on every deploy (CI rewrites the image tag), platform almost never.
+# Has the finalizer: deleting this file removes Spring only. The database belongs to platform (no finalizer, Prune=false).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+    name: fitnessbuddy
+    namespace: argocd
+    finalizers:
+        - resources-finalizer.argocd.argoproj.io
+spec:
+    project: default
+    source:
+        repoURL: https://github.com/mohamedGhassam/fitnessbuddy-infra.git
+        targetRevision: main
+        path: cluster/manifests/fitnessbuddy
+    destination:
+        server: https://kubernetes.default.svc
+        namespace: fitnessbuddy # owned by platform (namespace.yaml); every file also sets it
+    syncPolicy:
+        automated: { enabled: true, prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 5m } } # first sync waits for ESO to create the Secret
