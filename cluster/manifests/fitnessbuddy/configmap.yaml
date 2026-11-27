@@ -8,4 +8,7 @@ data:
     R2_BUCKET: "fitnessbuddy-media"
     R2_PUBLIC: "https://pub-488d50bb4acc44a5aa0365969f7e91b5.r2.dev/"
     R2_ENDPOINT: "https://3d3bdbf16de0e8314afade0749d5dfbd.r2.cloudflarestorage.com"
+    # The Worker rewrites the Host to the cluster Service name, so Spring sees every browser call
+    # (which carries Origin: workers.dev) as cross-origin. Origin only: scheme + host, no trailing slash.
+    CORS_ALLOWED_ORIGINS: "https://fitnessbuddy-frontend.mohdghosam.workers.dev"
     GOOGLE_CLIENT_ID: "625423587792-kbq35kai30q18s1d3q1mkep7uu8tsgld.apps.googleusercontent.com"
